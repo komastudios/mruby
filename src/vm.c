@@ -217,13 +217,15 @@ static inline struct REnv*
 uvenv(mrb_state *mrb, mrb_int up)
 {
   const struct RProc *proc = mrb->c->ci->proc;
-  struct REnv *e;
+  struct REnv *e = MRB_PROC_ENV(proc);
 
   while (up-- && proc->upper) {
     proc = proc->upper;
-    if (!proc) return NULL;
+    if (MRB_PROC_ENV(proc)) {
+      e = MRB_PROC_ENV(proc);
+    }
+    //if (!proc) return NULL;
   }
-  e = MRB_PROC_ENV(proc);
   if (e) return e;              /* proc has enclosed env */
   else {
     mrb_callinfo *ci = mrb->c->ci;
