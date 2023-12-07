@@ -219,7 +219,7 @@ uvenv(mrb_state *mrb, mrb_int up)
   const struct RProc *proc = mrb->c->ci->proc;
   struct REnv *e;
 
-  while (up--) {
+  while (up-- && proc->upper) {
     proc = proc->upper;
     if (!proc) return NULL;
   }
