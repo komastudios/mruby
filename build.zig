@@ -86,7 +86,6 @@ fn buildMrbcCompiler(
 
     // Build compiler flags
     var flags = std.ArrayList([]const u8).init(b.allocator);
-    defer flags.deinit();
 
     // Standard C flags
     flags.append("-std=gnu99") catch @panic("OOM");
@@ -204,7 +203,6 @@ fn buildLibmrubyCore(
 
     // Build compiler flags based on Rake toolchain settings (gcc.rake)
     var flags = std.ArrayList([]const u8).init(b.allocator);
-    defer flags.deinit();
 
     // Standard C flags
     flags.append("-std=gnu99") catch @panic("OOM");
