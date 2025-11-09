@@ -80,8 +80,10 @@ fn buildMrbcCompiler(
 ) *std.Build.Step.Compile {
     const mrbc = b.addExecutable(.{
         .name = "mrbc",
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     // Build compiler flags
@@ -195,10 +197,13 @@ fn buildLibmrubyCore(
     enable_cxx_exception: bool,
     enable_cxx_abi: bool,
 ) *std.Build.Step.Compile {
-    const lib = b.addStaticLibrary(.{
+    const lib = b.addLibrary(.{
+        .linkage = .static,
         .name = "mruby_core",
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     // Build compiler flags based on Rake toolchain settings (gcc.rake)
@@ -306,6 +311,7 @@ fn buildMrblib(
     mrbc_exe: *std.Build.Step.Compile,
     disable_presym: bool,
 ) *std.Build.Step.Compile {
+    _ = b;
     _ = target;
     _ = optimize;
     _ = mrbc_exe;
@@ -349,10 +355,13 @@ fn buildLibmruby(
     _ = mrblib_obj;
     _ = gem_init_obj;
 
-    const lib = b.addStaticLibrary(.{
+    const lib = b.addLibrary(.{
+        .linkage = .static,
         .name = "mruby",
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     // Link libmruby_core
@@ -378,8 +387,10 @@ fn buildMrubyExecutable(
 
     const exe = b.addExecutable(.{
         .name = "mruby",
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+        }),
     });
 
     // TODO: Add mruby binary sources
