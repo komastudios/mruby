@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-1. Install Zig (version 0.13.0 or later)
+1. Install Zig (version 0.15.2 or later)
    ```bash
    # Download from https://ziglang.org/download/
    # Or use a package manager:
@@ -14,7 +14,7 @@
 2. Verify installation:
    ```bash
    zig version
-   # Should show: 0.13.0 or later
+   # Should show: 0.15.2 or later
    ```
 
 ## Building mruby with Zig
@@ -130,7 +130,7 @@ zig build
 
 ### Zig Version Too Old
 
-Make sure you have Zig 0.13.0 or later:
+Make sure you have Zig 0.15.2 or later:
 
 ```bash
 zig version

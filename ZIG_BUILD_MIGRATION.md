@@ -102,6 +102,7 @@ The Rake system supports multiple build configurations:
 - ✅ Created `build.zig` with basic structure
 - ✅ Defined build phases
 - ✅ Set up standard target and optimization options
+- ✅ Updated to Zig 0.15.2 (latest stable release)
 
 #### Phase 2: Core Compilation (TODO)
 - [ ] Implement `buildLibmrubyCore()` fully
