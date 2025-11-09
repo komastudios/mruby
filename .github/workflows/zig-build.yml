@@ -1,0 +1,147 @@
+name: Zig Build & Test
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  zig-build:
+    name: "Zig-${{ matrix.os }}-${{ matrix.optimize }}"
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        include:
+          - {os: ubuntu-24.04, optimize: Debug}
+          - {os: ubuntu-24.04, optimize: ReleaseFast}
+          - {os: ubuntu-22.04, optimize: Debug}
+          - {os: ubuntu-22.04, optimize: ReleaseFast}
+          - {os: macos-15, optimize: Debug}
+          - {os: macos-15, optimize: ReleaseFast}
+          - {os: macos-14, optimize: Debug}
+          - {os: macos-14, optimize: ReleaseFast}
+          - {os: windows-latest, optimize: Debug}
+          - {os: windows-latest, optimize: ReleaseFast}
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.13.0
+
+      - name: Zig version
+        run: zig version
+
+      - name: Check if parse.c exists
+        id: check_parse
+        shell: bash
+        run: |
+          if [ -f "mrbgems/mruby-compiler/core/parse.c" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install Bison (Ubuntu)
+        if: steps.check_parse.outputs.exists == 'false' && startsWith(matrix.os, 'ubuntu')
+        run: sudo apt-get update && sudo apt-get install -y bison
+
+      - name: Install Bison (macOS)
+        if: steps.check_parse.outputs.exists == 'false' && startsWith(matrix.os, 'macos')
+        run: brew install bison
+
+      - name: Install Bison (Windows)
+        if: steps.check_parse.outputs.exists == 'false' && startsWith(matrix.os, 'windows')
+        run: choco install winflexbison3
+
+      - name: Generate parse.c from parse.y
+        if: steps.check_parse.outputs.exists == 'false'
+        shell: bash
+        run: |
+          cd mrbgems/mruby-compiler/core
+          bison -o parse.c parse.y
+          cd ../../..
+
+      - name: Build with Zig
+        run: zig build -Doptimize=${{ matrix.optimize }}
+
+      - name: Check mrbc executable
+        shell: bash
+        run: |
+          if [ -f "zig-out/bin/mrbc" ] || [ -f "zig-out/bin/mrbc.exe" ]; then
+            echo "✓ mrbc built successfully"
+            ls -lh zig-out/bin/
+          else
+            echo "✗ mrbc not found"
+            exit 1
+          fi
+
+      # Uncomment when mruby executable is built
+      # - name: Test mruby interpreter
+      #   shell: bash
+      #   run: |
+      #     ./zig-out/bin/mruby -e 'puts "Hello from mruby!"'
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mruby-zig-${{ matrix.os }}-${{ matrix.optimize }}
+          path: zig-out/bin/*
+          retention-days: 7
+
+  zig-cross-compile:
+    name: "Zig-Cross-${{ matrix.target }}"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - x86_64-linux-gnu
+          - aarch64-linux-gnu
+          - x86_64-windows-gnu
+          - x86_64-macos
+          - aarch64-macos
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: 0.13.0
+
+      - name: Check if parse.c exists
+        id: check_parse
+        run: |
+          if [ -f "mrbgems/mruby-compiler/core/parse.c" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install Bison
+        if: steps.check_parse.outputs.exists == 'false'
+        run: sudo apt-get update && sudo apt-get install -y bison
+
+      - name: Generate parse.c from parse.y
+        if: steps.check_parse.outputs.exists == 'false'
+        run: |
+          cd mrbgems/mruby-compiler/core
+          bison -o parse.c parse.y
+          cd ../../..
+
+      - name: Cross-compile for ${{ matrix.target }}
+        run: zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseFast
+
+      - name: Upload cross-compiled artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mruby-zig-${{ matrix.target }}
+          path: zig-out/bin/*
+          retention-days: 7
