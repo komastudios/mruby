@@ -1,12 +1,6 @@
 .{
     .name = "mruby",
     .version = "3.4.0",
-    .minimum_zig_version = "0.15.2",
-
-    .dependencies = .{
-        // No external dependencies currently
-    },
-
     .paths = .{
         "build.zig",
         "build.zig.zon",
