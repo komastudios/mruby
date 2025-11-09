@@ -16,48 +16,45 @@ pub fn build(b: *std.Build) void {
     // ========================================================================
 
     const mrbc_exe = buildMrbcCompiler(b, target, optimize, enable_debug);
+    _ = mrbc_exe; // Will be used in Phase 3 for mrblib compilation
 
     // ========================================================================
     // PHASE 2: Build libmruby_core.a
     // ========================================================================
 
     const libmruby_core = buildLibmrubyCore(b, target, optimize, enable_debug, enable_cxx_exception, enable_cxx_abi);
+    b.installArtifact(libmruby_core);
 
     // ========================================================================
     // PHASE 3: Build mrblib (Ruby standard library compiled to bytecode)
     // ========================================================================
 
-    if (!disable_presym) {
-        // TODO: Implement presym generation and compilation
-        // This requires scanning preprocessed files for symbols
-    }
+    // TODO: Implement presym generation if needed
+    _ = disable_presym; // suppress unused variable warning
 
-    const mrblib_obj = buildMrblib(b, target, optimize, mrbc_exe, disable_presym);
+    // TODO: Implement mrblib compilation
+    // const mrblib_obj = buildMrblib(b, target, optimize, mrbc_exe, disable_presym);
 
     // ========================================================================
     // PHASE 4: Build mrbgems
     // ========================================================================
 
     // TODO: Implement mrbgem discovery and compilation
-    // - Parse mrbgem.rake files or use a configuration
-    // - Compile each gem's C sources
-    // - Compile each gem's Ruby sources with mrbc
-    // - Generate gem_init.c
-
-    const gem_init_obj = buildGemInit(b, target, optimize);
 
     // ========================================================================
     // PHASE 5: Build libmruby.a (core + mrblib + gems)
     // ========================================================================
 
-    const libmruby = buildLibmruby(b, target, optimize, libmruby_core, mrblib_obj, gem_init_obj);
-    b.installArtifact(libmruby);
+    // TODO: Build complete libmruby
+    // const libmruby = buildLibmruby(b, target, optimize, libmruby_core, mrblib_obj, gem_init_obj);
+    // b.installArtifact(libmruby);
 
     // ========================================================================
     // PHASE 6: Build executables (mruby, mirb, etc.)
     // ========================================================================
 
-    buildMrubyExecutable(b, target, optimize, libmruby);
+    // TODO: Build mruby executable
+    // buildMrubyExecutable(b, target, optimize, libmruby);
 
     // ========================================================================
     // PHASE 7: Install headers
@@ -87,57 +84,67 @@ fn buildMrbcCompiler(
         .optimize = optimize,
     });
 
-    // Add core mruby sources needed for mrbc
-    const core_sources = [_][]const u8{
-        "src/state.c",
-        "src/allocf.c",
-        "src/gc.c",
-        "src/error.c",
-        "src/vm.c",
-        "src/symbol.c",
-        "src/class.c",
-        "src/proc.c",
-        "src/string.c",
-        "src/array.c",
-        "src/hash.c",
-        "src/numeric.c",
-        "src/range.c",
-        "src/object.c",
-        "src/enum.c",
-        "src/kernel.c",
-        "src/load.c",
-        "src/print.c",
-        "src/debug.c",
-        "src/codedump.c",
-        "src/dump.c",
-        "src/cdump.c",
-        "src/backtrace.c",
-        "src/variable.c",
-        "src/version.c",
-        "src/init.c",
-        "src/readfloat.c",
-        "src/readnum.c",
-        "src/readint.c",
-        "src/numops.c",
-        "src/fmt_fp.c",
-        "src/etc.c",
-        "src/mempool.c",
-    };
-
+    // Build compiler flags
     var flags = std.ArrayList([]const u8).init(b.allocator);
     defer flags.deinit();
 
-    flags.append("-std=c11") catch @panic("OOM");
+    // Standard C flags
+    flags.append("-std=gnu99") catch @panic("OOM");
     flags.append("-Wall") catch @panic("OOM");
-    flags.append("-Wextra") catch @panic("OOM");
+    flags.append("-Wundef") catch @panic("OOM");
+    flags.append("-Werror-implicit-function-declaration") catch @panic("OOM");
+    flags.append("-Wwrite-strings") catch @panic("OOM");
 
+    // Debug or optimization flags
     if (enable_debug) {
         flags.append("-DMRB_DEBUG") catch @panic("OOM");
+        flags.append("-g3") catch @panic("OOM");
+        flags.append("-O0") catch @panic("OOM");
+    } else {
         flags.append("-g") catch @panic("OOM");
+        flags.append("-O3") catch @panic("OOM");
     }
 
+    // mrbc-specific defines
     flags.append("-DMRB_NO_PRESYM") catch @panic("OOM");
     flags.append("-DMRB_NO_GEMS") catch @panic("OOM");
+
+    // Core sources needed for mrbc (alphabetically sorted)
+    const core_sources = [_][]const u8{
+        "src/allocf.c",
+        "src/array.c",
+        "src/backtrace.c",
+        "src/cdump.c",
+        "src/class.c",
+        "src/codedump.c",
+        "src/debug.c",
+        "src/dump.c",
+        "src/enum.c",
+        "src/error.c",
+        "src/etc.c",
+        "src/fmt_fp.c",
+        "src/gc.c",
+        "src/hash.c",
+        "src/init.c",
+        "src/kernel.c",
+        "src/load.c",
+        "src/mempool.c",
+        "src/numeric.c",
+        "src/numops.c",
+        "src/object.c",
+        "src/print.c",
+        "src/proc.c",
+        "src/range.c",
+        "src/readfloat.c",
+        "src/readint.c",
+        "src/readnum.c",
+        "src/state.c",
+        "src/string.c",
+        "src/symbol.c",
+        "src/variable.c",
+        "src/version.c",
+        "src/vm.c",
+    };
 
     mrbc.addCSourceFiles(.{
         .files = &core_sources,
@@ -147,8 +154,7 @@ fn buildMrbcCompiler(
     // Add compiler sources
     const compiler_sources = [_][]const u8{
         "mrbgems/mruby-compiler/core/codegen.c",
-        // Note: parse.y needs to be processed by yacc/bison first
-        // For now, assuming parse.c exists or will be generated
+        "mrbgems/mruby-compiler/core/parse.c", // Generated from parse.y
     };
 
     mrbc.addCSourceFiles(.{
@@ -167,9 +173,15 @@ fn buildMrbcCompiler(
         .flags = flags.items,
     });
 
+    // Include paths
     mrbc.addIncludePath(b.path("include"));
     mrbc.addIncludePath(b.path("mrbgems/mruby-compiler/core"));
+
+    // Link with libc and libm
     mrbc.linkLibC();
+    if (target.result.os.tag != .windows) {
+        mrbc.linkSystemLibrary("m");
+    }
 
     b.installArtifact(mrbc);
 
@@ -190,84 +202,101 @@ fn buildLibmrubyCore(
         .optimize = optimize,
     });
 
+    // Build compiler flags based on Rake toolchain settings (gcc.rake)
     var flags = std.ArrayList([]const u8).init(b.allocator);
     defer flags.deinit();
 
-    flags.append("-std=c11") catch @panic("OOM");
+    // Standard C flags
+    flags.append("-std=gnu99") catch @panic("OOM");
     flags.append("-Wall") catch @panic("OOM");
-    flags.append("-Wextra") catch @panic("OOM");
+    flags.append("-Wundef") catch @panic("OOM");
+    flags.append("-Werror-implicit-function-declaration") catch @panic("OOM");
+    flags.append("-Wwrite-strings") catch @panic("OOM");
 
+    // Debug or optimization flags
     if (enable_debug) {
         flags.append("-DMRB_DEBUG") catch @panic("OOM");
+        flags.append("-g3") catch @panic("OOM");
+        flags.append("-O0") catch @panic("OOM");
+    } else {
         flags.append("-g") catch @panic("OOM");
+        flags.append("-O3") catch @panic("OOM");
     }
 
+    // C++ exception/ABI flags
     if (enable_cxx_exception or enable_cxx_abi) {
         flags.append("-DMRB_USE_CXX_EXCEPTION") catch @panic("OOM");
     }
-
     if (enable_cxx_abi) {
         flags.append("-DMRB_USE_CXX_ABI") catch @panic("OOM");
     }
 
-    // Core sources
+    // Core sources (all files from src/, alphabetically sorted)
     const sources = [_][]const u8{
-        "src/state.c",
         "src/allocf.c",
-        "src/gc.c",
-        "src/error.c",
-        "src/vm.c",
-        "src/symbol.c",
-        "src/class.c",
-        "src/proc.c",
-        "src/string.c",
         "src/array.c",
-        "src/hash.c",
-        "src/numeric.c",
-        "src/range.c",
-        "src/object.c",
+        "src/backtrace.c",
+        "src/cdump.c",
+        "src/class.c",
+        "src/codedump.c",
+        "src/debug.c",
+        "src/dump.c",
         "src/enum.c",
+        "src/error.c",
+        "src/etc.c",
+        "src/fmt_fp.c",
+        "src/gc.c",
+        "src/hash.c",
+        "src/init.c",
         "src/kernel.c",
         "src/load.c",
+        "src/mempool.c",
+        "src/numeric.c",
+        "src/numops.c",
+        "src/object.c",
         "src/print.c",
-        "src/debug.c",
-        "src/codedump.c",
-        "src/dump.c",
-        "src/cdump.c",
-        "src/backtrace.c",
+        "src/proc.c",
+        "src/range.c",
+        "src/readfloat.c",
+        "src/readint.c",
+        "src/readnum.c",
+        "src/state.c",
+        "src/string.c",
+        "src/symbol.c",
         "src/variable.c",
         "src/version.c",
-        "src/init.c",
-        "src/readfloat.c",
-        "src/readnum.c",
-        "src/readint.c",
-        "src/numops.c",
-        "src/fmt_fp.c",
-        "src/etc.c",
-        "src/mempool.c",
+        "src/vm.c",
     };
 
-    // Special handling for C++ compilation mode
-    if (enable_cxx_exception or enable_cxx_abi) {
-        // In Rake build: vm.c, error.c, gc.c are compiled as C++ when exceptions enabled
-        // For Zig, we'll need to generate wrapper .cpp files or compile directly as C++
-        // TODO: Implement C++ wrapper generation
-    }
+    // Note: vm.c, error.c, gc.c would need special C++ compilation
+    // when enable_cxx_exception or enable_cxx_abi is true.
+    // For now, we compile everything as C. TODO: Add C++ wrapper support.
 
     lib.addCSourceFiles(.{
         .files = &sources,
         .flags = flags.items,
     });
 
-    // Add compiler sources to core
-    lib.addCSourceFile(.{
-        .file = b.path("mrbgems/mruby-compiler/core/codegen.c"),
+    // Add compiler sources
+    const compiler_sources = [_][]const u8{
+        "mrbgems/mruby-compiler/core/codegen.c",
+        "mrbgems/mruby-compiler/core/parse.c", // Generated from parse.y
+    };
+
+    lib.addCSourceFiles(.{
+        .files = &compiler_sources,
         .flags = flags.items,
     });
 
+    // Include paths
     lib.addIncludePath(b.path("include"));
     lib.addIncludePath(b.path("mrbgems/mruby-compiler/core"));
+
+    // Link with libc and libm (math library)
     lib.linkLibC();
+    if (target.result.os.tag != .windows) {
+        lib.linkSystemLibrary("m");
+    }
 
     return lib;
 }
